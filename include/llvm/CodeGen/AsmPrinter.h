@@ -199,9 +199,10 @@ public:
 
   /// Emit the specified function out to the OutStreamer.
   bool runOnMachineFunction(MachineFunction &MF) override {
+    bool modified = TagCallSites(MF);
     SetupMachineFunction(MF);
     EmitFunctionBody();
-    return false;
+    return modified;
   }
 
   //===------------------------------------------------------------------===//
@@ -329,6 +330,13 @@ public:
   /// instructions in verbose mode.
   virtual void emitImplicitDef(const MachineInstr *MI) const;
 
+  /// Some machine instructions encapsulate a call with follow-on boilerplate
+  /// instructions, meaning labels emitted after the "instruction" do not
+  /// capture the call's true return address.  Return an offset for correcting
+  /// these labels to refer to the call's actual return address.
+  virtual int getCanonicalReturnAddr(const MachineInstr *Call) const
+  { return 0; }
+
   //===------------------------------------------------------------------===//
   // Symbol Lowering Routines.
   //===------------------------------------------------------------------===//
@@ -392,6 +400,14 @@ public:
                           bool IsSectionRelative = false) const {
     EmitLabelPlusOffset(Label, 0, Size, IsSectionRelative);
   }
+
+  /// Find the stackmap intrinsic associated with a function call
+  MachineInstr *FindStackMap(MachineBasicBlock &MBB,
+                             MachineInstr *MI) const;
+
+  /// Move stackmap intrinsics directly after calls to correctly capture
+  /// return addresses
+  bool TagCallSites(MachineFunction &MF);
 
   //===------------------------------------------------------------------===//
   // Dwarf Emission Helper Routines

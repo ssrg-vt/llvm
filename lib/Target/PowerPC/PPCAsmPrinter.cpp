@@ -36,6 +36,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/StackMaps.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
+#include "llvm/CodeGen/UnwindInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -70,10 +71,11 @@ namespace {
     MapVector<MCSymbol*, MCSymbol*> TOC;
     const PPCSubtarget *Subtarget;
     StackMaps SM;
+    UnwindInfo UI;
   public:
     explicit PPCAsmPrinter(TargetMachine &TM,
                            std::unique_ptr<MCStreamer> Streamer)
-        : AsmPrinter(TM, std::move(Streamer)), SM(*this) {}
+        : AsmPrinter(TM, std::move(Streamer)), SM(*this), UI(*this) {}
 
     const char *getPassName() const override {
       return "PowerPC Assembly Printer";
@@ -99,9 +101,33 @@ namespace {
     void LowerPATCHPOINT(MCStreamer &OutStreamer, StackMaps &SM,
                          const MachineInstr &MI);
     void EmitTlsCall(const MachineInstr *MI, MCSymbolRefExpr::VariantKind VK);
+
+    virtual int getCanonicalReturnAddr(const MachineInstr *Call) const override;
+
     bool runOnMachineFunction(MachineFunction &MF) override {
       Subtarget = &MF.getSubtarget<PPCSubtarget>();
-      return AsmPrinter::runOnMachineFunction(MF);
+      bool retval = AsmPrinter::runOnMachineFunction(MF);
+
+      // Add this function's register unwind info.  The PowerPC backend doesn't
+      // maintain the saved FBP (old r31) and link register as callee-saved
+      // registers, so manually add where they're saved.
+      if(MF.getFrameInfo()->hasStackMap()) {
+        UI.recordUnwindInfo(MF);
+
+        // Add the LR & FP save slots
+        const TargetFrameLowering *TFL = Subtarget->getFrameLowering();
+        const PPCFunctionInfo *FI = MF.getInfo<PPCFunctionInfo>();
+        int Index, Offset;
+        unsigned BaseReg;
+
+        Offset = MF.getFrameInfo()->getStackSize() + 16;
+        UI.addRegisterUnwindInfo(MF, PPC::LR8, Offset);
+
+        Index = FI->getFramePointerSaveIndex();
+        Offset = TFL->getFrameIndexReferenceFromFP(MF, Index, BaseReg);
+        UI.addRegisterUnwindInfo(MF, PPC::X31, Offset);
+      }
+      return retval;
     }
   };
 
@@ -327,7 +353,9 @@ MCSymbol *PPCAsmPrinter::lookUpOrCreateTOCEntry(MCSymbol *Sym) {
 }
 
 void PPCAsmPrinter::EmitEndOfAsmFile(Module &M) {
-  SM.serializeToStackMapSection();
+  UI.serializeToUnwindInfoSection();
+  SM.serializeToStackMapSection(&UI);
+  UI.reset(); // Must reset after SM serialization to clear metadata
 }
 
 void PPCAsmPrinter::LowerSTACKMAP(MCStreamer &OutStreamer, StackMaps &SM,
@@ -488,6 +516,19 @@ void PPCAsmPrinter::EmitTlsCall(const MachineInstr *MI,
                                PPC::BL8_NOP_TLS : PPC::BL_TLS)
                  .addExpr(TlsRef)
                  .addExpr(SymVar));
+}
+
+/// getCanonicalReturnAddr -- for machine instructions which actually codegen
+/// a call + other instructions, return an offset which would correct a label
+/// to point to the call's actual return address.
+int PPCAsmPrinter::getCanonicalReturnAddr(const MachineInstr *Call) const {
+  switch(Call->getOpcode()) {
+  case PPC::BL8_NOP:
+  case PPC::BLA8_NOP:
+  case PPC::BL8_NOP_TLS:
+  case PPC::BCTRL8_LDinto_toc: return 4;
+  default: return 0;
+  }
 }
 
 /// EmitInstruction -- Print out a single PowerPC MI in Darwin syntax to

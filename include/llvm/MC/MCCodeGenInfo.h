@@ -32,6 +32,11 @@ class MCCodeGenInfo {
   ///
   CodeGenOpt::Level OptLevel;
 
+  /// ArchIROptLevel - Optimization level (architecture-specific IR
+  /// optimizations only).  Defaults to OptLevel.
+  ///
+  CodeGenOpt::Level ArchIROptLevel;
+
 public:
   void initMCCodeGenInfo(Reloc::Model RM = Reloc::Default,
                          CodeModel::Model CM = CodeModel::Default,
@@ -43,8 +48,12 @@ public:
 
   CodeGenOpt::Level getOptLevel() const { return OptLevel; }
 
+  CodeGenOpt::Level getArchIROptLevel() const { return ArchIROptLevel; }
+
   // Allow overriding OptLevel on a per-function basis.
   void setOptLevel(CodeGenOpt::Level Level) { OptLevel = Level; }
+
+  void setArchIROptLevel(CodeGenOpt::Level Level) { ArchIROptLevel = Level; }
 };
 } // namespace llvm
 

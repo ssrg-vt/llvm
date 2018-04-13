@@ -1078,6 +1078,13 @@ void RAFast::AllocateBasicBlock() {
 /// runOnMachineFunction - Register allocate the whole function
 ///
 bool RAFast::runOnMachineFunction(MachineFunction &Fn) {
+  // TODO the fast register allocator behaves poorly for stackmaps with lots
+  // of operands, and since it doesn't use the VirtRegRewriter pass we can't
+  // capture correct stackmap operand locations
+  if(Fn.getFrameInfo()->hasStackMap())
+    llvm_unreachable("Fast register allocator not supported for stack"
+                     "transformation");
+
   DEBUG(dbgs() << "********** FAST REGISTER ALLOCATION **********\n"
                << "********** Function: " << Fn.getName() << '\n');
   MF = &Fn;

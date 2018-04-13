@@ -227,6 +227,14 @@ public:
     return 0;
   }
 
+  /// Same as above, except that the 'frame register' will always be the ISA's
+  /// frame pointer (which can be different from the variable 'frame register'
+  /// which may be the stack pointer, frame pointer, etc.)
+  virtual int getFrameIndexReferenceFromFP(const MachineFunction &MF, int FI,
+                                           unsigned &FrameReg) const {
+    return getFrameIndexReference(MF, FI, FrameReg);
+  }
+
   /// This method determines which of the registers reported by
   /// TargetRegisterInfo::getCalleeSavedRegs() should actually get saved.
   /// The default implementation checks populates the \p SavedRegs bitset with

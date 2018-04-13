@@ -253,6 +253,15 @@ MachineFunction::getMachineMemOperand(const MachineMemOperand *MMO,
                                MMO->getBaseAlignment());
 }
 
+/// Is a register caller-saved?
+bool MachineFunction::isCallerSaved(unsigned Reg) const {
+  assert(TargetRegisterInfo::isPhysicalRegister(Reg) && "Invalid register");
+  CallingConv::ID CC = Fn->getCallingConv();
+  const uint32_t *Mask =
+    RegInfo->getTargetRegisterInfo()->getCallPreservedMask(*this, CC);
+  return !((Mask[Reg / 32] >> Reg % 32) & 1);
+}
+
 MachineInstr::mmo_iterator
 MachineFunction::allocateMemRefsArray(unsigned long Num) {
   return Allocator.Allocate<MachineMemOperand *>(Num);
@@ -480,6 +489,164 @@ MCSymbol *MachineFunction::getPICBaseSymbol() const {
   const DataLayout &DL = getDataLayout();
   return Ctx.getOrCreateSymbol(Twine(DL.getPrivateGlobalPrefix()) +
                                Twine(getFunctionNumber()) + "$pb");
+}
+
+/// Get the value for key K in Map M, or create a new one if it doesn't exist.
+template<typename Key, typename Val, typename Map>
+static Val &getOrCreateMapping(const Key *K, Map &M) {
+  typename Map::iterator It;
+  if((It = M.find(K)) == M.end())
+    It = M.insert(std::pair<const Key *, Val>(K, Val())).first;
+  return It->second;
+}
+
+/// Add an IR/architecture-specific location mapping for a stackmap operand
+void MachineFunction::addSMOpLocation(const CallInst *SM,
+                                      const Value *Val,
+                                      const MachineLiveLoc &MLL) {
+  auto containsLoc = [](const MachineLiveLocs &Vals,
+                        const MachineLiveLoc &Cur) -> bool {
+    for(auto &LV : Vals) if(Cur == *LV) return true;
+    return false;
+  };
+
+  assert(SM && "Invalid stackmap");
+  assert(Val && "Invalid stackmap operand");
+
+  IRToMachineLocs &IRMap =
+    getOrCreateMapping<Instruction,
+                       IRToMachineLocs,
+                       InstToOperands>(SM, SMDuplicateLocs);
+  MachineLiveLocs &Vals =
+    getOrCreateMapping<Value,
+                       MachineLiveLocs,
+                       IRToMachineLocs>(Val, IRMap);
+  if(!containsLoc(Vals, MLL))
+    Vals.push_back(MachineLiveLocPtr(MLL.copy()));
+}
+
+/// Add an IR/architecture-specific location mapping for a stackmap operand
+void MachineFunction::addSMOpLocation(const CallInst *SM,
+                                      unsigned Op,
+                                      const MachineLiveLoc &MLL) {
+  assert(SM && "Invalid stackmap");
+  assert(Op < SM->getNumArgOperands() && "Invalid operand number");
+  addSMOpLocation(SM, SM->getArgOperand(Op), MLL);
+}
+
+
+/// Add an architecture-specific live value & location for a stackmap
+void MachineFunction::addSMArchSpecificLocation(const CallInst *SM,
+                                                const MachineLiveLoc &MLL,
+                                                const MachineLiveVal &MLV) {
+  auto containsLoc = [](const ArchLiveValues &Vals,
+                        const MachineLiveLoc &Cur) -> bool {
+    for(auto &LV : Vals) if(Cur == *LV.first) return true;
+    return false;
+  };
+
+  assert(SM && "Invalid stackmap");
+  ArchLiveValues &Vals =
+    getOrCreateMapping<Instruction,
+                       ArchLiveValues,
+                       InstToArchLiveValues>(SM, SMArchSpecificLocs);
+  if(!containsLoc(Vals, MLL))
+    Vals.push_back(ArchLiveValue(MachineLiveLocPtr(MLL.copy()),
+                                 MachineLiveValPtr(MLV.copy())));
+}
+
+/// Update stack slot references to new indexes after stack slot coloring
+void
+MachineFunction::updateSMStackSlotRefs(SmallDenseMap<int, int, 16> &Changes) {
+
+  if(Changes.size()) {
+    DEBUG(dbgs() << "Updating stackmap stack slot references\n";);
+
+    int SS;
+    SmallDenseMap<int, int, 16>::iterator Change;
+
+    // Iterate over all operand duplicate locations
+    for(auto &InstIt : SMDuplicateLocs) {
+      for(auto &IRIt : InstIt.second) {
+        for(auto &MLL : IRIt.second) {
+          if(MLL->isStackSlot()) {
+            MachineLiveStackSlot &LSS = (MachineLiveStackSlot &)*MLL;
+            SS = LSS.getStackSlot();
+            Change = Changes.find(SS);
+            if(Change != Changes.end())
+              LSS.setStackSlot(Change->second);
+          }
+        }
+      }
+    }
+
+    // Iterate over all architecture-specific locations.
+    // Note: both the destination & source location can be stack slots
+    for(auto &InstIt : SMArchSpecificLocs) {
+      for(auto &MLL : InstIt.second) {
+        if(MLL.first->isStackSlot()) {
+          MachineLiveStackSlot &LSS = (MachineLiveStackSlot &)*MLL.first;
+          SS = LSS.getStackSlot();
+          Change = Changes.find(SS);
+          if(Change != Changes.end())
+            LSS.setStackSlot(Change->second);
+        }
+
+        if(MLL.second->isStackObject()) {
+          MachineStackObject &MSO = (MachineStackObject &)*MLL.second;
+          SS = MSO.getIndex();
+          Change = Changes.find(SS);
+          if(Change != Changes.end())
+            MSO.setIndex(Change->second);
+        }
+      }
+    }
+  }
+}
+
+/// Are there any architecture-specific locations for operand Val in stackmap
+/// SM?
+bool
+MachineFunction::hasSMOpLocations(const CallInst *SM, const Value *Val) const {
+  assert(SM && "Invalid stackmap");
+  assert(Val && "Invalid stackmap operand");
+  InstToOperands::const_iterator InstIt;
+  if((InstIt = SMDuplicateLocs.find(SM)) != SMDuplicateLocs.end())
+    return InstIt->second.find(Val) != InstIt->second.end();
+  return false;
+}
+
+/// Are there any architecture-specific locations for stackmap SM?
+bool
+MachineFunction::hasSMArchSpecificLocations(const llvm::CallInst *SM) const {
+  assert(SM && "Invalid stackmap");
+  return SMArchSpecificLocs.find(SM) != SMArchSpecificLocs.end();
+}
+
+/// Return the architecture-specific locations for a stackmap operand.
+const MachineLiveLocs &
+MachineFunction::getSMOpLocations(const CallInst *SM,
+                                  const Value *Val ) const {
+  assert(SM && "Invalid stackmap");
+  assert(Val && "Invalid stackmap operand");
+  InstToOperands::const_iterator InstIt = SMDuplicateLocs.find(SM);
+  assert(InstIt != SMDuplicateLocs.end() &&
+         "No duplicate locations for stackmap");
+  IRToMachineLocs::const_iterator IRIt = InstIt->second.find(Val);
+  assert(IRIt != InstIt->second.end() &&
+         "No duplicate locations for stackmap operand");
+  return IRIt->second;
+}
+
+/// Return the architecture-specific locations for a stackmap that are not
+/// associated with any operand.
+const ArchLiveValues &
+MachineFunction::getSMArchSpecificLocations(const CallInst *SM) const {
+  assert(SM && "Invalid stackmap");
+  InstToArchLiveValues::const_iterator InstIt = SMArchSpecificLocs.find(SM);
+  assert(InstIt != SMArchSpecificLocs.end() &&
+         "No architecture-specific locations for stackmap");
+  return InstIt->second;
 }
 
 //===----------------------------------------------------------------------===//

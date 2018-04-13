@@ -135,6 +135,10 @@ protected:
   /// Null if this target doesn't support a BSS section. ELF and MachO only.
   MCSection *TLSBSSSection; // Defaults to ".tbss".
 
+  /// Unwinding address ranges & register location sections.
+  MCSection *UnwindAddrRangeSection;
+  MCSection *UnwindInfoSection;
+
   /// StackMap section.
   MCSection *StackMapSection;
 
@@ -267,6 +271,8 @@ public:
   const MCSection *getTLSDataSection() const { return TLSDataSection; }
   MCSection *getTLSBSSSection() const { return TLSBSSSection; }
 
+  MCSection *getUnwindInfoSection() const { return UnwindInfoSection; }
+  MCSection *getUnwindAddrRangeSection() const { return UnwindAddrRangeSection; }
   MCSection *getStackMapSection() const { return StackMapSection; }
   MCSection *getFaultMapSection() const { return FaultMapSection; }
 

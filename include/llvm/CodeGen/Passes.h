@@ -123,6 +123,15 @@ protected:
   /// Default setting for -enable-shrink-wrap on this target.
   bool EnableShrinkWrap;
 
+  /// Add equivalence points into the application
+  bool AddMigrationPoints;
+
+  /// Add stackmaps at function call sites & equivalence points
+  bool AddStackMaps;
+
+  /// Add stackmaps describing stack state in libc thread start functions
+  bool AddLibcStackMaps;
+
 public:
   TargetPassConfig(TargetMachine *tm, PassManagerBase &pm);
   // Dummy constructor.
@@ -141,6 +150,9 @@ public:
   void setInitialized() { Initialized = true; }
 
   CodeGenOpt::Level getOptLevel() const { return TM->getOptLevel(); }
+
+  CodeGenOpt::Level getArchIROptLevel() const
+  { return TM->getArchIROptLevel(); }
 
   /// Set the StartAfter, StartBefore and StopAfter passes to allow running only
   /// a portion of the normal code-gen pass sequence.
@@ -192,6 +204,26 @@ public:
 
   /// Return true if shrink wrapping is enabled.
   bool getEnableShrinkWrap() const;
+
+  /// Return whether we should instrument the code with equivalence points.
+  bool addMigrationPoints() const { return AddMigrationPoints; }
+
+  /// Return whether we should emit stack transformation metadata by
+  /// instrumenting the code with IR-level StackMaps.
+  bool addStackMaps() const { return AddStackMaps; }
+
+  /// Return whether we should emit transformation metadata (via IR-level
+  /// StackMaps) for libc thread start functions.
+  bool addLibcStackMaps() const { return AddLibcStackMaps; }
+
+  /// \brief Enable/disable adding equivalence points.
+  void setAddMigrationPoints(bool Set) { AddMigrationPoints = Set; }
+
+  /// \brief Enable/disable adding StackMaps.
+  void setAddStackMaps(bool Set) { AddStackMaps = Set; }
+
+  /// \brief Enable/disable adding StackMaps to libc thread start function.
+  void setAddLibcStackMaps(bool Set) { AddLibcStackMaps = Set; }
 
   /// Return true if the default global register allocator is in use and
   /// has not be overriden on the command line with '-regalloc=...'
@@ -447,6 +479,10 @@ namespace llvm {
   /// ShrinkWrap pass. Look for the best place to insert save and restore
   // instruction and update the MachineFunctionInfo with that information.
   extern char &ShrinkWrapID;
+
+  /// Stack transformation metadata pass.  Gather additional stack
+  /// transformation metadata from machine functions.
+  extern char &StackTransformMetadataID;
 
   /// VirtRegRewriter pass. Rewrite virtual registers to physical registers as
   /// assigned in VirtRegMap.

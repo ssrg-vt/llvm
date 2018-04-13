@@ -20,6 +20,8 @@
 
 #include "llvm/ADT/ilist.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/StackTransformTypes.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/Support/Allocator.h"
@@ -144,6 +146,12 @@ class MachineFunction {
 
   /// True if the function includes any inline assembly.
   bool HasInlineAsm;
+
+  /// Duplicate live value locations for stackmap operands
+  InstToOperands SMDuplicateLocs;
+
+  /// Architecture-specific live value locations for each stackmap
+  InstToArchLiveValues SMArchSpecificLocs;
 
   MachineFunction(const MachineFunction &) = delete;
   void operator=(const MachineFunction&) = delete;
@@ -457,6 +465,9 @@ public:
     return Mask;
   }
 
+  /// Is a register caller-saved?
+  bool isCallerSaved(unsigned Reg) const;
+
   /// allocateMemRefsArray - Allocate an array to hold MachineMemOperand
   /// pointers.  This array is owned by the MachineFunction.
   MachineInstr::mmo_iterator allocateMemRefsArray(unsigned long Num);
@@ -488,6 +499,39 @@ public:
   /// getPICBaseSymbol - Return a function-local symbol to represent the PIC
   /// base.
   MCSymbol *getPICBaseSymbol() const;
+
+  //===--------------------------------------------------------------------===//
+  // Architecture-specific stack transformation metadata
+  //
+
+  /// Add an IR/architecture-specific location mapping for a stackmap operand
+  void addSMOpLocation(const CallInst *SM, const Value *Val,
+                       const MachineLiveLoc &MLL);
+  void addSMOpLocation(const CallInst *SM, unsigned Op,
+                       const MachineLiveLoc &MLL);
+
+  /// Add an architecture-specific live value & location for a stackmap
+  void addSMArchSpecificLocation(const CallInst *SM,
+                                 const MachineLiveLoc &MLL,
+                                 const MachineLiveVal &MLV);
+
+  /// Update stack slot references to new indexes after stack slot coloring
+  void updateSMStackSlotRefs(SmallDenseMap<int, int, 16> &Changes);
+
+  /// Are there any architecture-specific locations for operand Val in stackmap
+  /// SM?
+  bool hasSMOpLocations(const CallInst *SM, const Value *Val) const;
+
+  /// Are there any architecture-specific locations for stackmap SM?
+  bool hasSMArchSpecificLocations(const CallInst *SM) const;
+
+  /// Return the architecture-specific locations for a stackmap operand.
+  const MachineLiveLocs &getSMOpLocations(const CallInst *SM,
+                                          const Value *Val) const;
+
+  /// Return the architecture-specific locations for a stackmap that are not
+  /// associated with any operand.
+  const ArchLiveValues &getSMArchSpecificLocations(const CallInst *SM) const;
 };
 
 //===--------------------------------------------------------------------===//

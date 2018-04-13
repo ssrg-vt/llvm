@@ -32,6 +32,7 @@ class TargetRegisterClass;
 class TargetRegisterInfo;
 class TargetSchedModel;
 class TargetSelectionDAGInfo;
+class TargetValues;
 struct MachineSchedPolicy;
 template <typename T> class SmallVectorImpl;
 
@@ -94,6 +95,13 @@ public:
   virtual const InstrItineraryData *getInstrItineraryData() const {
     return nullptr;
   }
+
+  /// getValues - Returns the value generator object for the target or specific
+  /// subtarget
+  ///
+  virtual const TargetValues *getValues() const {
+    return nullptr;
+  };
 
   /// Resolve a SchedClass at runtime, where SchedClass identifies an
   /// MCSchedClassDesc with the isVariant property. This may return the ID of

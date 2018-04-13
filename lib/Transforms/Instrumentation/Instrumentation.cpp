@@ -24,8 +24,11 @@ void llvm::initializeInstrumentation(PassRegistry &Registry) {
   initializeAddressSanitizerPass(Registry);
   initializeAddressSanitizerModulePass(Registry);
   initializeBoundsCheckingPass(Registry);
+  initializeMigrationPointsPass(Registry);
   initializeGCOVProfilerPass(Registry);
+  initializeInsertStackMapsPass(Registry);
   initializeInstrProfilingPass(Registry);
+  initializeLibcStackMapsPass(Registry);
   initializeMemorySanitizerPass(Registry);
   initializeThreadSanitizerPass(Registry);
   initializeSanitizerCoverageModulePass(Registry);

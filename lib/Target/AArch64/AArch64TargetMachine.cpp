@@ -220,16 +220,20 @@ void AArch64PassConfig::addIRPasses() {
   // Cmpxchg instructions are often used with a subsequent comparison to
   // determine whether it succeeded. We can exploit existing control-flow in
   // ldrex/strex loops to simplify this, but it needs tidying up.
-  if (TM->getOptLevel() != CodeGenOpt::None && EnableAtomicTidy)
+  if (TM->getOptLevel() != CodeGenOpt::None &&
+      TM->getArchIROptLevel() != CodeGenOpt::None &&
+      EnableAtomicTidy)
     addPass(createCFGSimplificationPass());
 
   TargetPassConfig::addIRPasses();
 
   // Match interleaved memory accesses to ldN/stN intrinsics.
-  if (TM->getOptLevel() != CodeGenOpt::None)
+  if (TM->getOptLevel() != CodeGenOpt::None &&
+      TM->getArchIROptLevel() != CodeGenOpt::None)
     addPass(createInterleavedAccessPass(TM));
 
-  if (TM->getOptLevel() == CodeGenOpt::Aggressive && EnableGEPOpt) {
+  if (TM->getOptLevel() == CodeGenOpt::Aggressive &&
+      TM->getArchIROptLevel() != CodeGenOpt::None && EnableGEPOpt) {
     // Call SeparateConstOffsetFromGEP pass to extract constants within indices
     // and lower a GEP with multiple indices to either arithmetic operations or
     // multiple GEPs with single index.
@@ -247,12 +251,14 @@ void AArch64PassConfig::addIRPasses() {
 bool AArch64PassConfig::addPreISel() {
   // Run promote constant before global merge, so that the promoted constants
   // get a chance to be merged
-  if (TM->getOptLevel() != CodeGenOpt::None && EnablePromoteConstant)
+  if (TM->getOptLevel() != CodeGenOpt::None &&
+      TM->getArchIROptLevel() != CodeGenOpt::None && EnablePromoteConstant)
     addPass(createAArch64PromoteConstantPass());
   // FIXME: On AArch64, this depends on the type.
   // Basically, the addressable offsets are up to 4095 * Ty.getSizeInBytes().
   // and the offset has to be a multiple of the related size in bytes.
   if ((TM->getOptLevel() != CodeGenOpt::None &&
+       TM->getArchIROptLevel() != CodeGenOpt::None &&
        EnableGlobalMerge == cl::BOU_UNSET) ||
       EnableGlobalMerge == cl::BOU_TRUE) {
     bool OnlyOptimizeForSize = (TM->getOptLevel() < CodeGenOpt::Aggressive) &&
@@ -260,7 +266,8 @@ bool AArch64PassConfig::addPreISel() {
     addPass(createGlobalMergePass(TM, 4095, OnlyOptimizeForSize));
   }
 
-  if (TM->getOptLevel() != CodeGenOpt::None)
+  if (TM->getOptLevel() != CodeGenOpt::None &&
+      TM->getArchIROptLevel() != CodeGenOpt::None)
     addPass(createAArch64AddressTypePromotionPass());
 
   return false;

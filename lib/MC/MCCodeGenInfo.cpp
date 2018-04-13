@@ -20,4 +20,5 @@ void MCCodeGenInfo::initMCCodeGenInfo(Reloc::Model RM, CodeModel::Model CM,
   RelocationModel = RM;
   CMModel = CM;
   OptLevel = OL;
+  ArchIROptLevel = OL;
 }

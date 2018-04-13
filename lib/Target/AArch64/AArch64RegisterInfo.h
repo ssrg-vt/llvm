@@ -91,6 +91,9 @@ public:
   // Debug information queries.
   unsigned getFrameRegister(const MachineFunction &MF) const override;
 
+  int getReturnAddrLoc(const MachineFunction &MF,
+                       unsigned &BaseReg) const override;
+
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const override;
   // Base pointer (stack realignment) support.

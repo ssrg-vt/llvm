@@ -2032,6 +2032,8 @@ SDValue AArch64TargetLowering::LowerOperation(SDValue Op,
     return LowerFSINCOS(Op, DAG);
   case ISD::MUL:
     return LowerMUL(Op, DAG);
+  case (uint16_t)~TargetOpcode::STACKMAP:
+    return SDValue(); // Use generic stackmap type legalizer
   }
 }
 

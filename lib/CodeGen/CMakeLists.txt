@@ -111,6 +111,8 @@ add_llvm_library(LLVMCodeGen
   StackSlotColoring.cpp
   StackMapLivenessAnalysis.cpp
   StackMaps.cpp
+  StackTransformMetadata.cpp
+  StackTransformTypes.cpp
   StatepointExampleGC.cpp
   TailDuplication.cpp
   TargetFrameLoweringImpl.cpp
@@ -122,6 +124,7 @@ add_llvm_library(LLVMCodeGen
   TargetSchedule.cpp
   TwoAddressInstructionPass.cpp
   UnreachableBlockElim.cpp
+  UnwindInfo.cpp
   VirtRegMap.cpp
   WinEHPrepare.cpp
 

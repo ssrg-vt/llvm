@@ -149,6 +149,17 @@ void TargetMachine::setOptLevel(CodeGenOpt::Level Level) const {
     CodeGenInfo->setOptLevel(Level);
 }
 
+CodeGenOpt::Level TargetMachine::getArchIROptLevel() const {
+  if (!CodeGenInfo)
+    return CodeGenOpt::Default;
+  return CodeGenInfo->getArchIROptLevel();
+}
+
+void TargetMachine::setArchIROptLevel(CodeGenOpt::Level Level) const {
+  if (CodeGenInfo)
+    CodeGenInfo->setArchIROptLevel(Level);
+}
+
 TargetIRAnalysis TargetMachine::getTargetIRAnalysis() {
   return TargetIRAnalysis([this](Function &F) {
     return TargetTransformInfo(F.getParent()->getDataLayout());

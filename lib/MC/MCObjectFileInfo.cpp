@@ -519,6 +519,15 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(Triple T) {
   DwarfAddrSection =
       Ctx->getELFSection(".debug_addr", ELF::SHT_PROGBITS, 0, "addr_sec");
 
+  UnwindAddrRangeSection =
+      Ctx->getELFSection(".stack_transform.unwind_arange", ELF::SHT_PROGBITS,
+                         0, sizeof(uint64_t) + sizeof(uint64_t), "");
+  UnwindInfoSection =
+      Ctx->getELFSection(".stack_transform.unwind", ELF::SHT_PROGBITS, 0,
+                         sizeof(uint16_t) + sizeof(int16_t), "");
+  UnwindAddrRangeSection->setAlignment(sizeof(uint64_t));
+  UnwindInfoSection->setAlignment(sizeof(uint16_t) + sizeof(int16_t));
+
   StackMapSection =
       Ctx->getELFSection(".llvm_stackmaps", ELF::SHT_PROGBITS, ELF::SHF_ALLOC);
 

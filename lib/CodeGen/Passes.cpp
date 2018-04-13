@@ -217,7 +217,9 @@ TargetPassConfig::TargetPassConfig(TargetMachine *tm, PassManagerBase &pm)
     : ImmutablePass(ID), PM(&pm), StartBefore(nullptr), StartAfter(nullptr),
       StopAfter(nullptr), Started(true), Stopped(false),
       AddingMachinePasses(false), TM(tm), Impl(nullptr), Initialized(false),
-      DisableVerify(false), EnableTailMerge(true), EnableShrinkWrap(false) {
+      DisableVerify(false), EnableTailMerge(true), EnableShrinkWrap(false),
+      AddMigrationPoints(false), AddStackMaps(false),
+      AddLibcStackMaps(false) {
 
   Impl = new PassConfigImpl();
 
@@ -391,7 +393,9 @@ void TargetPassConfig::addIRPasses() {
     addPass(createVerifierPass());
 
   // Run loop strength reduction before anything else.
-  if (getOptLevel() != CodeGenOpt::None && !DisableLSR) {
+  if (getOptLevel() != CodeGenOpt::None &&
+      getArchIROptLevel() != CodeGenOpt::None &&
+      !DisableLSR) {
     addPass(createLoopStrengthReducePass());
     if (PrintLSR)
       addPass(createPrintFunctionPass(dbgs(), "\n\n*** Code after LSR ***\n"));
@@ -406,10 +410,14 @@ void TargetPassConfig::addIRPasses() {
   addPass(createUnreachableBlockEliminationPass());
 
   // Prepare expensive constants for SelectionDAG.
-  if (getOptLevel() != CodeGenOpt::None && !DisableConstantHoisting)
+  if (getOptLevel() != CodeGenOpt::None &&
+      getArchIROptLevel() != CodeGenOpt::None &&
+      !DisableConstantHoisting)
     addPass(createConstantHoistingPass());
 
-  if (getOptLevel() != CodeGenOpt::None && !DisablePartialLibcallInlining)
+  if (getOptLevel() != CodeGenOpt::None &&
+      getArchIROptLevel() != CodeGenOpt::None &&
+      !DisablePartialLibcallInlining)
     addPass(createPartiallyInlineLibCallsPass());
 }
 
@@ -449,7 +457,9 @@ void TargetPassConfig::addPassesToHandleExceptions() {
 /// Add pass to prepare the LLVM IR for code generation. This should be done
 /// before exception handling preparation passes.
 void TargetPassConfig::addCodeGenPrepare() {
-  if (getOptLevel() != CodeGenOpt::None && !DisableCGP)
+  if (getOptLevel() != CodeGenOpt::None &&
+      getArchIROptLevel() != CodeGenOpt::None &&
+      !DisableCGP)
     addPass(createCodeGenPreparePass(TM));
   addPass(createRewriteSymbolsPass());
 }
@@ -458,6 +468,23 @@ void TargetPassConfig::addCodeGenPrepare() {
 /// instruction selection.
 void TargetPassConfig::addISelPrepare() {
   addPreISel();
+
+  assert(!(AddStackMaps && AddLibcStackMaps) &&
+    "Cannot add both InsertStackMapsPass and LibcStackMapsPass");
+  assert(!(AddMigrationPoints && AddLibcStackMaps) &&
+    "Should not be instrumenting libc with extra migration points");
+
+  // Add pass to instrument IR with equivalence points, which are implemented
+  // various ways depending on other command-line arguments
+  if(AddMigrationPoints) addPass(createMigrationPointsPass());
+
+  // Add pass to instrument IR with stackmap instructions, which get lowered to
+  // metadata needed for Popcorn's stack transformation
+  if(AddStackMaps) addPass(createInsertStackMapsPass());
+
+  // Similar to creatInsertStackMaps pass, but only instruments libc thread
+  // start functions
+  if(AddLibcStackMaps) addPass(createLibcStackMapsPass());
 
   // Add both the safe stack and the stack protection passes: each of them will
   // only protect functions that have corresponding attributes.
@@ -753,6 +780,10 @@ void TargetPassConfig::addOptimizedRegAlloc(FunctionPass *RegAllocPass) {
 
   // Allow targets to change the register assignments before rewriting.
   addPreRewrite();
+
+  // Gather additional stack transformation metadata before rewriting virtual
+  // registers
+  addPass(&StackTransformMetadataID);
 
   // Finally rewrite virtual registers.
   addPass(&VirtRegRewriterID);

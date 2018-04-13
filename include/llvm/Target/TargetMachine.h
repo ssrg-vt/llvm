@@ -171,6 +171,13 @@ public:
   /// \brief Overrides the optimization level.
   void setOptLevel(CodeGenOpt::Level Level) const;
 
+  /// Returns the architecture-specific IR optimization level: None, Less,
+  /// Default or Aggressive.
+  CodeGenOpt::Level getArchIROptLevel() const;
+
+  /// \brief Overrides the architecture-specific IR optimization level.
+  void setArchIROptLevel(CodeGenOpt::Level Level) const;
+
   void setFastISel(bool Enable) { Options.EnableFastISel = Enable; }
 
   bool shouldPrintMachineCode() const { return Options.PrintMachineCode; }

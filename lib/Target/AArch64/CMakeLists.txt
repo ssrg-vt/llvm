@@ -43,6 +43,7 @@ add_llvm_target(AArch64CodeGen
   AArch64TargetMachine.cpp
   AArch64TargetObjectFile.cpp
   AArch64TargetTransformInfo.cpp
+  AArch64Values.cpp
 )
 
 add_dependencies(LLVMAArch64CodeGen intrinsics_gen)

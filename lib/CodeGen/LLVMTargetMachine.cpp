@@ -42,6 +42,26 @@ static cl::opt<cl::boolOrDefault>
 EnableFastISelOption("fast-isel", cl::Hidden,
   cl::desc("Enable the \"fast\" instruction selector"));
 
+// Popcorn-specific IR-level instrumentation
+enum PopcornInstrumentation {
+  none, // No instrumentation
+  migpoints, // Only add equivalence points, don't generate rewriting metadata
+  migration, // Add migration points & generate rewriting metadata for migration
+  libc // Generate rewriting metadata for libc thread start functions
+};
+
+static cl::opt<PopcornInstrumentation> PopcornInstrument("popcorn-instrument",
+  cl::desc("Add Popcorn-specific instrumentation to applications"),
+  cl::init(none),
+  cl::values(
+    clEnumVal(none, "No instrumentation (default)"),
+    clEnumVal(migpoints, "Only add migration points (no migration metadata)"),
+    clEnumVal(migration, "Add equivalence points & migration metadata"),
+    clEnumVal(libc, "Instrument libc thread start functions for migration"),
+    NULL
+  )
+);
+
 void LLVMTargetMachine::initAsmInfo() {
   MRI = TheTarget.createMCRegInfo(getTargetTriple().str());
   MII = TheTarget.createMCInstrInfo();
@@ -104,6 +124,29 @@ addPassesToGenerateCode(LLVMTargetMachine *TM, PassManagerBase &PM,
 
   // Set PassConfig options provided by TargetMachine.
   PassConfig->setDisableVerify(DisableVerify);
+
+  /// Popcorn compiler - multi-ISA binary configurations.  Requires that IR
+  /// passed to backends is identical, save for certain architecture-specific
+  /// quirks like atomic operations or intrinsics
+  if(PopcornInstrument != PopcornInstrumentation::none) {
+    TM->setArchIROptLevel(CodeGenOpt::None);
+
+    switch(PopcornInstrument) {
+    case PopcornInstrumentation::migpoints:
+      PassConfig->setAddMigrationPoints(true);
+      break;
+    case PopcornInstrumentation::migration:
+      PassConfig->setAddMigrationPoints(true);
+      PassConfig->setAddStackMaps(true);
+      break;
+    case PopcornInstrumentation::libc:
+      PassConfig->setAddLibcStackMaps(true);
+      break;
+    default:
+      llvm_unreachable("Invalid instrumentation type");
+      break;
+    }
+  }
 
   PM.add(PassConfig);
 

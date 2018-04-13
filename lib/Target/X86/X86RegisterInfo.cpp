@@ -596,6 +596,13 @@ X86RegisterInfo::getPtrSizedFrameRegister(const MachineFunction &MF) const {
   return FrameReg;
 }
 
+int X86RegisterInfo::getReturnAddrLoc(const MachineFunction &MF,
+                                      unsigned &BaseReg) const {
+  const X86MachineFunctionInfo *X86FI = MF.getInfo<X86MachineFunctionInfo>();
+  const TargetFrameLowering *TFL = MF.getSubtarget().getFrameLowering();
+  return TFL->getFrameIndexReference(MF, X86FI->getRAIndex(), BaseReg);
+}
+
 namespace llvm {
 unsigned getX86SubSuperRegisterOrZero(unsigned Reg, MVT::SimpleValueType VT,
                                       bool High) {

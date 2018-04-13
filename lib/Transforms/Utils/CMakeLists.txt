@@ -28,12 +28,14 @@ add_llvm_library(LLVMTransformUtils
   Mem2Reg.cpp
   MetaRenamer.cpp
   ModuleUtils.cpp
+  NameStringLiterals.cpp
   PromoteMemoryToRegister.cpp
   SSAUpdater.cpp
   SimplifyCFG.cpp
   SimplifyIndVar.cpp
   SimplifyInstructions.cpp
   SimplifyLibCalls.cpp
+  StaticVarSections.cpp
   SymbolRewriter.cpp
   UnifyFunctionExitNodes.cpp
   Utils.cpp

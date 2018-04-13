@@ -655,6 +655,15 @@ int AArch64FrameLowering::getFrameIndexReference(const MachineFunction &MF,
   return resolveFrameIndexReference(MF, FI, FrameReg);
 }
 
+/// getFrameIndexReferenceFromFP - Provide a base+offset reference to an FI
+/// slot for debug info, but force base to be the frame pointer (x29).
+int
+AArch64FrameLowering::getFrameIndexReferenceFromFP(const MachineFunction &MF,
+                                                   int FI,
+                                                   unsigned &FrameReg) const {
+  return resolveFrameIndexReference(MF, FI, FrameReg, true);
+}
+
 int AArch64FrameLowering::resolveFrameIndexReference(const MachineFunction &MF,
                                                      int FI, unsigned &FrameReg,
                                                      bool PreferFP) const {

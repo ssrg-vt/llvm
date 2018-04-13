@@ -126,6 +126,9 @@ public:
   unsigned getBaseRegister() const { return BasePtr; }
   // FIXME: Move to FrameInfok
   unsigned getSlotSize() const { return SlotSize; }
+
+  int getReturnAddrLoc(const MachineFunction &MF,
+                       unsigned &BaseReg) const override;
 };
 
 /// Returns the sub or super register of a specific X86 register.

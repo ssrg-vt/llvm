@@ -34,10 +34,13 @@ add_llvm_library(LLVMAnalysis
   LibCallAliasAnalysis.cpp
   LibCallSemantics.cpp
   Lint.cpp
+  LiveValues.cpp
   Loads.cpp
   LoopAccessAnalysis.cpp
   LoopInfo.cpp
+  LoopNestingTree.cpp
   LoopPass.cpp
+  LoopPaths.cpp
   MemDepPrinter.cpp
   MemDerefPrinter.cpp
   MemoryBuiltins.cpp
@@ -55,6 +58,7 @@ add_llvm_library(LLVMAnalysis
   ScalarEvolutionAliasAnalysis.cpp
   ScalarEvolutionExpander.cpp
   ScalarEvolutionNormalization.cpp
+  SelectMigrationPoints.cpp
   SparsePropagation.cpp
   TargetLibraryInfo.cpp
   TargetTransformInfo.cpp

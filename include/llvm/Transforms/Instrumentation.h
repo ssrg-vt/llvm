@@ -136,6 +136,17 @@ FunctionPass *createBoundsCheckingPass();
 /// protect against stack-based overflow vulnerabilities.
 FunctionPass *createSafeStackPass();
 
+/// \brief This pass inserts equivalence points into functions.
+FunctionPass *createMigrationPointsPass();
+
+/// \brief This pass inserts stack map intrinsics at equivalence points in
+/// order to record live value locations
+ModulePass *createInsertStackMapsPass();
+
+/// \brief This pass inserts stack map intrinsics similarly to InsertStackMaps,
+/// but only in thread start functions inside of libc
+ModulePass *createLibcStackMapsPass();
+
 } // End llvm namespace
 
 #endif

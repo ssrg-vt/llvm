@@ -173,6 +173,26 @@ namespace llvm {
   //
   FunctionPass *createMemDerefPrinter();
 
+  //===--------------------------------------------------------------------===//
+  //
+  // createLiveValuesPass - This pass calculates live-value sets for basic
+  // blocks in a function.
+  //
+  FunctionPass *createLiveValuesPass();
+
+  //===--------------------------------------------------------------------===//
+  //
+  // createEnumerateLoopPathsPass - This pass calculates all paths between
+  // equivalence points within a loop.
+  //
+  FunctionPass *createEnumerateLoopPathsPass();
+
+  //===--------------------------------------------------------------------===//
+  //
+  // createSelectMigrationPointsPass - This pass analyzes and marks instructions
+  // inside of functions to be migration points.
+  //
+  FunctionPass *createSelectMigrationPointsPass();
 }
 
 #endif

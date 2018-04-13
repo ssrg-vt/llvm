@@ -278,6 +278,7 @@ bool StackSlotColoring::ColorSlots(MachineFunction &MF) {
   SmallVector<int, 16> SlotMapping(NumObjs, -1);
   SmallVector<float, 16> SlotWeights(NumObjs, 0.0);
   SmallVector<SmallVector<int, 4>, 16> RevMap(NumObjs);
+  SmallDenseMap<int, int, 16> SlotChanges;
   BitVector UsedColors(NumObjs);
 
   DEBUG(dbgs() << "Color spill slot intervals:\n");
@@ -292,7 +293,9 @@ bool StackSlotColoring::ColorSlots(MachineFunction &MF) {
     SlotWeights[NewSS] += li->weight;
     UsedColors.set(NewSS);
     Changed |= (SS != NewSS);
+    if(SS != NewSS) SlotChanges[SS] = NewSS;
   }
+  MF.updateSMStackSlotRefs(SlotChanges);
 
   DEBUG(dbgs() << "\nSpill slots after coloring:\n");
   for (unsigned i = 0, e = SSIntervals.size(); i != e; ++i) {

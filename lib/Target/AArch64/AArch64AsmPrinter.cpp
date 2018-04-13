@@ -28,6 +28,7 @@
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
 #include "llvm/CodeGen/StackMaps.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
+#include "llvm/CodeGen/UnwindInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/MC/MCAsmInfo.h"
@@ -49,11 +50,12 @@ namespace {
 class AArch64AsmPrinter : public AsmPrinter {
   AArch64MCInstLower MCInstLowering;
   StackMaps SM;
+  UnwindInfo UI;
 
 public:
   AArch64AsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)), MCInstLowering(OutContext, *this),
-        SM(*this), AArch64FI(nullptr) {}
+        SM(*this), UI(*this), AArch64FI(nullptr) {}
 
   const char *getPassName() const override {
     return "AArch64 Assembly Printer";
@@ -83,7 +85,9 @@ public:
 
   bool runOnMachineFunction(MachineFunction &F) override {
     AArch64FI = F.getInfo<AArch64FunctionInfo>();
-    return AsmPrinter::runOnMachineFunction(F);
+    bool retval = AsmPrinter::runOnMachineFunction(F);
+    UI.recordUnwindInfo(F);
+    return retval;
   }
 
 private:
@@ -129,8 +133,10 @@ void AArch64AsmPrinter::EmitEndOfAsmFile(Module &M) {
     // linker can safely perform dead code stripping.  Since LLVM never
     // generates code that does this, it is always safe to set.
     OutStreamer->EmitAssemblerFlag(MCAF_SubsectionsViaSymbols);
-    SM.serializeToStackMapSection();
   }
+  UI.serializeToUnwindInfoSection();
+  SM.serializeToStackMapSection(&UI);
+  UI.reset(); // Must reset after SM serialization to clear metadata
 }
 
 MachineLocation

@@ -17,6 +17,7 @@
 #include "PPCFrameLowering.h"
 #include "PPCISelLowering.h"
 #include "PPCInstrInfo.h"
+#include "PPCValues.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/MC/MCInstrItineraries.h"
@@ -129,6 +130,7 @@ protected:
   PPCFrameLowering FrameLowering;
   PPCInstrInfo InstrInfo;
   PPCTargetLowering TLInfo;
+  PPCValues VGen;
   TargetSelectionDAGInfo TSInfo;
 
 public:
@@ -171,6 +173,7 @@ public:
     return &getInstrInfo()->getRegisterInfo();
   }
   const PPCTargetMachine &getTargetMachine() const { return TM; }
+  const PPCValues *getValues() const override { return &VGen; }
 
   /// initializeSubtargetDependencies - Initializes using a CPU and feature string
   /// so that we can use initializer lists for subtarget initialization.

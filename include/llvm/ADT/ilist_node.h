@@ -70,7 +70,7 @@ public:
     const NodeTy *Prev = this->getPrev();
 
     // Check for sentinel.
-    if (!Prev->getNext())
+    if (!Prev || !Prev->getNext())
       return nullptr;
 
     return Prev;
@@ -81,7 +81,7 @@ public:
     NodeTy *Next = getNext();
 
     // Check for sentinel.
-    if (!Next->getNext())
+    if (!Next || !Next->getNext())
       return nullptr;
 
     return Next;

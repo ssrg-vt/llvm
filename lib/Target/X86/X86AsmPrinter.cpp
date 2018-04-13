@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
@@ -49,6 +50,8 @@ using namespace llvm;
 bool X86AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   Subtarget = &MF.getSubtarget<X86Subtarget>();
 
+  bool modified = TagCallSites(MF);
+
   SMShadowTracker.startFunction(MF);
 
   SetupMachineFunction(MF);
@@ -66,8 +69,17 @@ bool X86AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   // Emit the rest of the function body.
   EmitFunctionBody();
 
-  // We didn't modify anything.
-  return false;
+  // Add this function's register unwind info.  The x86 backend doesn't
+  // maintain the saved FBP (old RBP) and return address (RIP) as callee-saved
+  // registers, so manually add where they're saved.
+  if(MF.getFrameInfo()->hasStackMap()) {
+    UI.recordUnwindInfo(MF);
+    UI.addRegisterUnwindInfo(MF, X86::RIP, 8);
+    UI.addRegisterUnwindInfo(MF, X86::RBP, 0);
+  }
+
+  // We may have modified where stack map intrinsics are located.
+  return modified;
 }
 
 /// printSymbolOperand - Print a raw symbol reference operand.  This handles
@@ -689,8 +701,10 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
   }
 
   if (TT.isOSBinFormatELF()) {
-    SM.serializeToStackMapSection();
+    UI.serializeToUnwindInfoSection();
+    SM.serializeToStackMapSection(&UI);
     FM.serializeToFaultMapSection();
+    UI.reset(); // Must reset after SM serialization to clear metadata
   }
 }
 
