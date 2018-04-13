@@ -19,7 +19,7 @@ namespace {
  * functions inside of libc for which we want to generate metadata, since we
  * disallow migration inside the public libc API.
  */
-// TODO: only implemented for musl-libc!
+// TODO: only implemented for musl-libc and newlib!
 class LibcStackMaps : public ModulePass
 {
 public:
@@ -202,14 +202,16 @@ const StringRef LibcStackMaps::SMName = "llvm.experimental.stackmap";
  */
 const std::map<std::string, std::vector<std::string> > LibcStackMaps::funcs = {
   {"__libc_start_main", {"__libc_start_main"}},
-  {"pthread_create", {"start", "start_c11"}}
+  {"pthread_create", {"start", "start_c11"}},
+  {"crt0", {"libc_start"}}
 };
 
 /* Map a function name to the stackmap ID representing that function. */
 const std::map<std::string, int64_t> LibcStackMaps::smids = {
   {"__libc_start_main", UINT64_MAX},
   {"start", UINT64_MAX - 1},
-  {"start_c11", UINT64_MAX - 2}
+  {"start_c11", UINT64_MAX - 2},
+  {"libc _start", UINT64_MAX - 3}
 };
 
 /**
