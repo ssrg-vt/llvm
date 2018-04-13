@@ -346,6 +346,7 @@ enum {
   ELFOSABI_AROS = 15,         // AROS
   ELFOSABI_FENIXOS = 16,      // FenixOS
   ELFOSABI_CLOUDABI = 17,     // Nuxi CloudABI
+  ELFOSABI_HERMIT = 0x42,     // HermitCore
   ELFOSABI_C6000_ELFABI = 64, // Bare-metal TMS320C6000
   ELFOSABI_AMDGPU_HSA = 64,   // AMD HSA runtime
   ELFOSABI_C6000_LINUX = 65,  // Linux TMS320C6000

@@ -129,6 +129,7 @@ public:
   enum OSType {
     UnknownOS,
 
+	Hermit,
     CloudABI,
     Darwin,
     DragonFly,
