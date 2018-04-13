@@ -8,10 +8,26 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
+/* In some cases newlib uses the same source file to compile different object
+ * files that are all put into libc.a, making that the unique identifier
+ * generation method provided by UniquifySymbol below does not works: we end
+ * up with multiple definition of the same symbol when we try to link the
+ * application against newlib. What I do here is a terrible hack, appending
+ * a random number after each uniquified symbol (random enough so that we
+ * have extremely low probabilities of getting the same name for multiple
+ * symbols). This is not a good solution and we need a better way to uniquify
+ * these newlib symbols. Maybe we can use the target object file rather than
+ * the source file name? */
+#define PIERRE_NEWLIB_HACK
+
 #define DEBUG_TYPE "name-string-literals"
 #define CHARS_FOR_NAME 10
 
 using namespace llvm;
+
+#ifdef PIERRE_NEWLIB_HACK
+using namespace std;
+#endif
 
 namespace
 {
@@ -26,6 +42,10 @@ std::string UniquifySymbol(const Module &M, GlobalVariable &Sym)
   std::string newName;
   std::string::size_type loc;
   auto filter = [](char c){ return !isalnum(c); };
+
+#ifdef PIERRE_NEWLIB_HACK
+  unsigned int id = rand() % 1000000;
+#endif
 
   newName = M.getName();
   loc = newName.find_last_of('.');
@@ -44,6 +64,10 @@ std::string UniquifySymbol(const Module &M, GlobalVariable &Sym)
       }
     }
   }
+
+#ifdef PIERRE_NEWLIB_HACK
+  newName += to_string(id);
+#endif
 
   return newName;
 }
