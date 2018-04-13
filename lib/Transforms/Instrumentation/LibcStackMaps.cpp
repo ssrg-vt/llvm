@@ -12,6 +12,9 @@
 
 using namespace llvm;
 
+#include <iostream>
+using namespace std;
+
 namespace {
 
 /**
@@ -61,6 +64,14 @@ public:
                      << file->second[f] << "\n");
 
         F = M.getFunction(file->second[f]);
+
+		cout << file->second[f];
+
+		if(F)
+			cout << "YEEEEEAAAH" << endl;
+		else
+			cout << "NOOOOOOOO" << endl;
+
         assert(F && !F->isDeclaration() && "No thread function definition");
         modified |= this->removeOldStackmaps(F);
         assert(smids.find(file->second[f]) != smids.end() && "No ID for function");
@@ -203,7 +214,15 @@ const StringRef LibcStackMaps::SMName = "llvm.experimental.stackmap";
 const std::map<std::string, std::vector<std::string> > LibcStackMaps::funcs = {
   {"__libc_start_main", {"__libc_start_main"}},
   {"pthread_create", {"start", "start_c11"}},
-  {"crt0", {"libc_start"}}
+  {"crt0", {"libc_start"}},
+  {"tasks", {"thread_entry"}} /* TODO this is for hermitcore thread entry
+								 function, there are 2 issues: first we cannot
+								 compile the kernel with -popcorn-libc becasue
+								 if enables mutiple things that destroys the
+								 kernel (ex -ffunction and data sections), so
+								 we need to run only this pass. Second, there
+								 are actually 2 files named tasks.c so we need
+								 to rename one */
 };
 
 /* Map a function name to the stackmap ID representing that function. */
@@ -211,7 +230,8 @@ const std::map<std::string, int64_t> LibcStackMaps::smids = {
   {"__libc_start_main", UINT64_MAX},
   {"start", UINT64_MAX - 1},
   {"start_c11", UINT64_MAX - 2},
-  {"libc_start", UINT64_MAX - 3}
+  {"libc_start", UINT64_MAX - 3},
+  {"thread_entry", UINT64_MAX - 4}
 };
 
 /**
