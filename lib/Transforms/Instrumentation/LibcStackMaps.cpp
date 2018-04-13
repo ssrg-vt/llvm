@@ -211,7 +211,7 @@ const std::map<std::string, int64_t> LibcStackMaps::smids = {
   {"__libc_start_main", UINT64_MAX},
   {"start", UINT64_MAX - 1},
   {"start_c11", UINT64_MAX - 2},
-  {"libc _start", UINT64_MAX - 3}
+  {"libc_start", UINT64_MAX - 3}
 };
 
 /**
