@@ -12,9 +12,6 @@
 
 using namespace llvm;
 
-#include <iostream>
-using namespace std;
-
 namespace {
 
 /**
@@ -64,13 +61,6 @@ public:
                      << file->second[f] << "\n");
 
         F = M.getFunction(file->second[f]);
-
-		cout << file->second[f];
-
-		if(F)
-			cout << "YEEEEEAAAH" << endl;
-		else
-			cout << "NOOOOOOOO" << endl;
 
         assert(F && !F->isDeclaration() && "No thread function definition");
         modified |= this->removeOldStackmaps(F);
